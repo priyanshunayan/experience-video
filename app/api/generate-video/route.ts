@@ -2,12 +2,8 @@ import { writeFile } from "fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
 import OpenAI from 'openai';
-import { zodTextFormat } from "openai/helpers/zod";
-import { z } from "zod";
-// import FfmpegCommand from 'fluent-ffmpeg';
-import ffmpeg from 'fluent-ffmpeg';
 import { VideoPromptGenerator } from "../helper";
-import { ElevenLabsClient, play } from "@elevenlabs/elevenlabs-js";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 import winston from 'winston';
 
@@ -72,12 +68,12 @@ export const GET = async (request: NextRequest) => {
 
     const videoPromptGenerator = new VideoPromptGenerator();
 
-    // const result = await videoPromptGenerator.generateVideoPrompts(review_images, images, name);
+    const result = await videoPromptGenerator.generateVideoPrompts(review_images, images, name);
 
     
 
 
-/*     const promises = result.selectedImages.map(async ({ prompt, imageUrl }: { prompt: string, imageUrl: string }) => {
+     const promises = result.selectedImages.map(async ({ prompt, imageUrl }: { prompt: string, imageUrl: string }) => {
         const input = {
             prompt: prompt,
             start_image_url: imageUrl
@@ -92,12 +88,12 @@ export const GET = async (request: NextRequest) => {
     outputs.forEach((output, index) => {
         //@ts-ignore
         writeFile(`output_${index}.mp4`, output);
-    }) */;
+    });
 
 
 
 
-// /* logger.warn("Starting ElevenLabs API call"); */
+logger.warn("Starting ElevenLabs API call");
 
     const elevenlabs = new ElevenLabsClient({
         apiKey: process.env.ELEVENLABS_API_KEY
@@ -106,29 +102,9 @@ export const GET = async (request: NextRequest) => {
     logger.warn("ElevenLabs API call started, created client");
     
     const audio = await elevenlabs.textToSpeech.convert("TX3LPaxmHKxFdv7VOQHJ", {
-        text: `La douce lumière du soleil baigne un grand jardin et une statue majestueuse.
-
-Un balayage délicat de la caméra révèle une élégance symétrique et une beauté naturelle.
-
-En traversant des couloirs aux miroirs, des teintes dorées scintillent tout autour.
-
-Panoramique sur l’or et le bleu ornés, avec de douces réflexions.
-
-Un couloir ensoleillé bordé de statues transmet la sérénité de l’histoire.
-
-Un zoom cinématographique révèle un lustre qui brille chaleureusement.
-
-La lumière cinématographique enrichit l’or et les motifs floraux, figés dans le temps.
-
-Une approche douce met en valeur les détails d’une statue dorée.
-
-Des mouvements subtils animent une scène de fontaine vibrante.
-
-Les couleurs vives du jardin brillent doucement sous la lumière naturelle.
-
-Réservez dès maintenant sur Headout en toute simplicité.`,
+        text: result.narrationScript,
         modelId: "eleven_flash_v2_5",
-        languageCode: "fr"
+        languageCode: "fr" // replace with the language code of the video
     })
 
     logger.info({
@@ -137,6 +113,15 @@ Réservez dès maintenant sur Headout en toute simplicité.`,
 
     //@ts-ignore
      await writeFile("audio.mp3", audio);
+     
+
+     // stich all videos together 
+    //  ffmpeg -i output_0.mp4 -i output_1.mp4 -i output_2.mp4 -i output_3.mp4 -i output_4.mp4 -i output_5.mp4 -i output_6.mp4 -i output_7.mp4 -i output_8.mp4 -i output_9.mp4 -filter_complex "[0:v][1:v][2:v][3:v][4:v][5:v][6:v][7:v][8:v][9:v]concat=n=10:v=1:a=0[outv]" -map "[outv]" merged_output.mp4
+     
+
+    // add audio to the video
+    // export AUDIO_DURATION=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 audio.mp3)
+    // ffmpeg -i merged_output.mp4 -i audio.mp3 -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=4[v]" -map "[v]" -map 1:a -t  $AUDIO_DURATION output_new-french.mp4
     
 
     return NextResponse.json({
